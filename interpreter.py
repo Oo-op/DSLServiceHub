@@ -1,5 +1,6 @@
 from enum import Enum
 import re
+from typing import List, Optional  # 添加导入
 
 class TokenType(Enum):
     KEYWORD = 1      # Step, Speak, Listen 等
@@ -126,7 +127,7 @@ class Lexer:
         # 8. 脚本结束，返回EOF Token
         return Token(TokenType.EOF, None)
 
-    def tokenize(self) -> list[Token]:
+    def tokenize(self) -> List[Token]:  # 修复：使用 List[Token] 而不是 list[Token]
         """将整个脚本转换为Token列表"""
         tokens = []
         while True:
@@ -160,20 +161,18 @@ Exit"""
     except LexicalError as e:
         print(f"词法错误：{e}")
 
-
-
 class ASTNode:
     """抽象语法树节点基类"""
     pass
 
-class Program(ASTNode):  # 修正：类名应该大写
+class Program(ASTNode):
     """根节点，程序节点，包含多个步骤"""
-    def __init__(self, steps: list['StepNode']):
+    def __init__(self, steps: List['StepNode']):  # 修复：使用 List
         self.steps = steps
 
 class StepNode(ASTNode):
     """步骤节点，包含步骤名和多个操作"""
-    def __init__(self, name: str, actions: list['ActionNode']):
+    def __init__(self, name: str, actions: List['ActionNode']):  # 修复：使用 List
         self.name = name
         self.actions = actions
 
@@ -209,13 +208,13 @@ class SilenceNode(ASTNode):
     def __init__(self, step_name: str):
         self.step_name = step_name
 
-class SyntaxError(Exception):  # 修正：拼写错误
+class SyntaxError(Exception):
     """语法错误异常"""
     pass
 
 class Parser:
     """语法分析器：将Token流转换为抽象语法树（AST）"""
-    def __init__(self, tokens: list[Token]):
+    def __init__(self, tokens: List[Token]):  # 修复：使用 List
         self.tokens = tokens  # 输入的Token列表
         self.pos = 0  # 当前解析位置（索引）
         self.length = len(tokens)  # Token总数
@@ -239,7 +238,7 @@ class Parser:
         self.pos += 1
         return current_token
     
-    def parse_program(self) -> Program:  # 修正：方法名拼写
+    def parse_program(self) -> Program:
         """解析程序"""
         steps = []
         while self.peek_token().type != TokenType.EOF:
@@ -281,13 +280,13 @@ class Parser:
                 
         return StepNode(step_name_token.value, actions)
     
-    def parse_speak(self) -> SpeakNode:  # 修正：移除了class关键字
+    def parse_speak(self) -> SpeakNode:
         """解析Speak语句"""
         self.move(TokenType.KEYWORD, "Speak")
         string_token = self.move(TokenType.STRING)
         return SpeakNode(string_token.value)
 
-    def parse_listen(self) -> ListenNode:  # 修正：移除了class关键字
+    def parse_listen(self) -> ListenNode:
         """解析Listen语句"""
         self.move(TokenType.KEYWORD, "Listen")
         min_time_token = self.move(TokenType.NUMBER)
@@ -295,31 +294,30 @@ class Parser:
         max_time_token = self.move(TokenType.NUMBER)
         return ListenNode(int(min_time_token.value), int(max_time_token.value))
 
-    def parse_branch(self) -> BranchNode:  # 修正：移除了class关键字
+    def parse_branch(self) -> BranchNode:
         """解析Branch语句"""
         self.move(TokenType.KEYWORD, "Branch")
         keyword_token = self.move(TokenType.STRING)
-        self.move(TokenType.SYMBOL, ",")  # 添加：解析逗号
+        self.move(TokenType.SYMBOL, ",")
         step_name_token = self.move(TokenType.IDENTIFIER)
         return BranchNode(keyword_token.value, step_name_token.value)
 
-    def parse_default(self) -> DefaultNode:  # 修正：移除了class关键字
+    def parse_default(self) -> DefaultNode:
         """解析Default语句"""
         self.move(TokenType.KEYWORD, "Default")
         step_name_token = self.move(TokenType.IDENTIFIER)
         return DefaultNode(step_name_token.value)
 
-    def parse_exit(self) -> ExitNode:  # 修正：移除了class关键字
+    def parse_exit(self) -> ExitNode:
         """解析Exit语句"""
         self.move(TokenType.KEYWORD, "Exit")
         return ExitNode()   
 
-    def parse_silence(self) -> SilenceNode:  # 修正：移除了class关键字
+    def parse_silence(self) -> SilenceNode:
         """解析Silence语句"""
         self.move(TokenType.KEYWORD, "Silence")
         step_name_token = self.move(TokenType.IDENTIFIER)
         return SilenceNode(step_name_token.value)
-
 
 # ------------------------------
 # 测试语法分析器
@@ -378,11 +376,11 @@ Step defaultProc
         return ast
         
     except LexicalError as e:
-        print(f"❌ 词法错误：{e}")
+        print(f"词法错误：{e}")
     except SyntaxError as e:
-        print(f"❌ 语法错误：{e}")
+        print(f"语法错误：{e}")
     except Exception as e:
-        print(f"❌ 其他错误：{e}")
+        print(f"其他错误：{e}")
 
 if __name__ == "__main__":
     test_parser()
