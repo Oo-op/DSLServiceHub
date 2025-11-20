@@ -1,232 +1,167 @@
-#!/usr/bin/env python3
-"""
-故宫客服DSL解释器 - 主程序
-集成词法分析、语法分析、语义执行和LLM意图识别
-"""
+# main.py (无人工版本)
 
 import sys
 import os
 import time
-from interpreter import Lexer, Parser, LexicalError, SyntaxError
-from interpreter import SpeakNode, ListenNode, BranchNode, DefaultNode, ExitNode, SilenceNode
-from LLMNeed import LLMClient, Config
+from interpreter import Lexer, Parser, LexicalError, SyntaxError, \
+                          SpeakNode, ListenNode, BranchNode, DefaultNode, ExitNode, SilenceNode
+from LLMNeed import LLMClient
+from typing import Optional, List 
 
 class DSLInterpreter:
     """DSL解释器：执行AST并管理对话状态"""
     
     def __init__(self, llm_client: LLMClient = None):
         self.llm_client = llm_client or LLMClient()
-        self.current_step = "welcome"  # 初始步骤
-        self.steps = {}  # 存储所有步骤
-        self.user_input_history = []  # 用户输入历史
-        self.silence_count = 0  # 静默次数计数
-        self.max_silence_count = 3  # 最大静默次数
+        self.steps = {}
+        self.silence_count = 0
+        self.max_silence_retries = 1
         
-    def load_dsl_script(self, script: str):
+    def load_dsl_script(self, script: str) -> bool:
         """加载并解析DSL脚本"""
         try:
-            # 词法分析
             lexer = Lexer(script)
             tokens = lexer.tokenize()
-            
-            # 语法分析
             parser = Parser(tokens)
             ast = parser.parse_program()
             
-            # 构建步骤字典
+            self.steps.clear()
             for step in ast.steps:
+                if step.name in self.steps:
+                    print(f"⚠️ 警告: 步骤 '{step.name}' 被重复定义。后边的定义会覆盖前边的。")
                 self.steps[step.name] = step
                 
-            print(f"成功加载DSL脚本，包含 {len(self.steps)} 个步骤")
+            print(f"✅ 成功加载并解析DSL脚本，共 {len(self.steps)} 个步骤。")
             return True
-            
-        except LexicalError as e:
-            print(f"词法错误: {e}")
-            return False
-        except SyntaxError as e:
-            print(f"语法错误: {e}")
+        except (LexicalError, SyntaxError) as e:
+            print(f"❌ 解析DSL脚本失败: {e}")
             return False
         except Exception as e:
-            print(f"加载脚本错误: {e}")
+            print(f"❌ 加载脚本时发生未知错误: {e}")
             return False
     
-    def execute_step(self, step_name: str):
-        """执行指定步骤"""
+    def run(self, start_step_name: str = "welcome"):
+        """从指定步骤开始运行解释器"""
+        if start_step_name not in self.steps:
+            print(f"❌ 错误: 起始步骤 '{start_step_name}' 未在DSL脚本中定义。")
+            return
+
+        print("\n" + "="*50)
+        print("🏛️  欢迎使用故宫博物院智能客服系统 🏛️")
+        # 修改了这里的提示语
+        print("💡 您可以随时输入“没有”或“再见”来结束对话。")
+        print("="*50 + "\n")
+        
+        current_step_name = start_step_name
+        while current_step_name:
+            try:
+                current_step_name = self.execute_step(current_step_name)
+            except KeyboardInterrupt:
+                print("\n\n对话被用户中断。感谢使用，再见！")
+                break
+            except Exception as e:
+                print(f"\n❌ 执行过程中发生意外错误: {e}")
+                print("系统遇到问题，对话结束。")
+                break
+        
+        print("\n" + "="*50)
+        print("对话已结束。")
+        print("="*50)
+
+    def execute_step(self, step_name: str) -> Optional[str]:
+        """
+        执行单个步骤的所有动作，并返回下一个步骤的名称。
+        返回 None 表示对话结束。
+        """
         if step_name not in self.steps:
-            print(f"错误: 步骤 '{step_name}' 不存在")
-            return False
-            
+            print(f"❌ 运行时错误: 尝试跳转到不存在的步骤 '{step_name}'。")
+            return "exitProc" # 跳转到退出步骤以安全结束
+
         step = self.steps[step_name]
-        print(f"\n{'='*40}")
-        print(f"执行步骤: {step_name}")
-        print(f"{'='*40}")
+        print(f"\n▶️ 进入步骤: {step_name}")
         
-        # 重置静默计数（进入新步骤时重置）
-        self.silence_count = 0
-        
+        if step_name != "silenceProc":
+             self.silence_count = 0
+
         for action in step.actions:
             if isinstance(action, SpeakNode):
-                self.execute_speak(action)
+                print(f"🤖 客服: {action.message}")
+                time.sleep(0.5) 
+            
             elif isinstance(action, ListenNode):
-                next_step = self.execute_listen(action, step.actions)
-                if next_step:
-                    return self.execute_step(next_step)
-                else:
-                    return True  # 没有下一步，结束当前步骤
-            elif isinstance(action, ExitNode):
-                print("\n" + "="*50)
-                print("对话结束，感谢使用故宫客服！")
-                print("="*50)
-                return True
-                
-        return True
-    
-    def execute_speak(self, speak_node):
-        """执行Speak操作"""
-        print(f"🤖 客服: {speak_node.message}")
-        # 模拟说话时间
-        time.sleep(1)
-        
-    def execute_listen(self, listen_node, step_actions):
-        """执行Listen操作并处理用户输入"""
-        min_time, max_time = listen_node.min_time, listen_node.max_time
-        
-        print(f"\n⏰ 等待用户输入 ({min_time}-{max_time}秒)...")
-        print("💡 提示: 您可以询问『门票』、『开放时间』、『游玩攻略』，或说『人工』转人工客服")
-        
-        # 收集所有Branch的关键词用于提示
-        branch_keywords = []
-        branch_actions = {}
-        for action in step_actions:
-            if isinstance(action, BranchNode):
-                branch_keywords.append(action.keyword)
-                branch_actions[action.keyword] = action
-        
-        if branch_keywords:
-            print(f"🎯 可用关键词: {', '.join(branch_keywords)}")
-        
-        # 获取用户输入
-        try:
-            user_input = input("\n👤 您: ").strip()
-        except KeyboardInterrupt:
-            print("\n\n收到中断信号，结束对话...")
-            return "transferHuman"
-        
-        if user_input:
-            self.user_input_history.append(user_input)
-            self.silence_count = 0  # 有输入时重置静默计数
-            
-            print(f"🔍 正在分析您的输入...")
-            time.sleep(0.5)  # 模拟分析时间
-            
-            # 使用LLM进行意图识别
-            if self.llm_client and branch_keywords:
-                intent = self.llm_client.recognize_intent(user_input, branch_keywords)
-                print(f"✅ 识别意图: {intent}")
-                
-                # 根据意图找到对应的Branch
-                if intent in branch_actions:
-                    return branch_actions[intent].step_name
-            
-            # 如果LLM识别失败，使用关键词匹配
-            for keyword in branch_keywords:
-                if keyword in user_input:
-                    print(f"✅ 关键词匹配: {keyword}")
-                    return branch_actions[keyword].step_name
-            
-            # 没有匹配的Branch，执行Default
-            for action in step_actions:
-                if isinstance(action, DefaultNode):
-                    print("⚠️  未识别到明确意图，执行默认流程")
-                    return action.step_name
-                    
-        else:
-            # 处理静默情况
-            self.silence_count += 1
-            print(f"🔇 检测到静默 (第{self.silence_count}次)")
-            
-            # 检查是否超过最大静默次数
-            if self.silence_count >= self.max_silence_count:
-                print("❌ 静默次数过多，转人工客服")
-                return "transferHuman"
-            
-            # 执行Silence分支
-            for action in step_actions:
-                if isinstance(action, SilenceNode):
-                    print("🔇 执行静默处理流程")
-                    return action.step_name
-            
-            # 如果没有Silence分支但有Default，执行Default
-            for action in step_actions:
-                if isinstance(action, DefaultNode):
-                    print("🔇 静默状态下执行默认流程")
-                    return action.step_name
-        
-        return None
-    
-    def run(self):
-        """启动解释器"""
-        if "welcome" not in self.steps:
-            print("错误: 未找到初始步骤 'welcome'")
-            return
-            
-        print("\n" + "="*60)
-        print("🏛️  故宫客服机器人启动")
-        print("="*60)
-        print("欢迎使用故宫博物院智能客服系统！")
-        print("="*60)
-        
-        try:
-            self.execute_step("welcome")
-        except Exception as e:
-            print(f"\n❌ 系统错误: {e}")
-            print("正在转接人工客服...")
-            if "transferHuman" in self.steps:
-                self.execute_step("transferHuman")
+                return self.execute_listen(action, step.actions)
 
-def load_dsl_file(file_path: str) -> str:
-    """从文件加载DSL脚本"""
-    try:
-        with open(file_path, 'r', encoding='utf-8') as f:
-            return f.read()
-    except FileNotFoundError:
-        print(f"错误: 文件 {file_path} 不存在")
-        return None
-    except Exception as e:
-        print(f"读取文件错误: {e}")
-        return None
+            elif isinstance(action, ExitNode):
+                return None
+
+            elif isinstance(action, (BranchNode, DefaultNode, SilenceNode)):
+                continue
+
+        for action in step.actions:
+            if isinstance(action, DefaultNode):
+                return action.step_name
+        
+        print(f"⚠️ 警告: 步骤 '{step_name}' 执行完毕但没有后续指令 (如 Listen 或 Default)，对话流程中断。")
+        return "exitProc"
+
+    def execute_listen(self, listen_node: ListenNode, actions: List) -> Optional[str]:
+        """执行Listen操作，获取用户输入并决定下一个步骤"""
+        branch_actions = {a.keyword: a for a in actions if isinstance(a, BranchNode)}
+        default_action = next((a for a in actions if isinstance(a, DefaultNode)), None)
+        silence_action = next((a for a in actions if isinstance(a, SilenceNode)), None)
+
+        user_friendly_keywords = [k for k in branch_actions.keys() if k not in ["没有", "退出"]]
+        if user_friendly_keywords:
+            print(f"💡 可选话题: {', '.join(user_friendly_keywords)}")
+        
+        try:
+            user_input = input("👤 您: ").strip()
+        except EOFError: 
+            user_input = ""
+
+        if user_input:
+            self.silence_count = 0
+            
+            recognized_intent = self.llm_client.recognize_intent(user_input, list(branch_actions.keys()))
+            
+            if recognized_intent and recognized_intent in branch_actions:
+                return branch_actions[recognized_intent].step_name
+
+            for keyword, branch_action in branch_actions.items():
+                if keyword.lower() in user_input.lower():
+                    print(f"[关键词匹配] 命中 '{keyword}'")
+                    return branch_action.step_name
+            
+            if default_action:
+                print("  (未匹配到特定意图，执行默认流程...)")
+                return default_action.step_name
+        else:
+            self.silence_count += 1
+            print(f"💬 检测到静默 (累计: {self.silence_count}次)")
+            
+            if silence_action:
+                return silence_action.step_name
+            elif default_action:
+                return default_action.step_name
+
+        print("⚠️ 警告: Listen 后无有效后续步骤 (Branch, Default, Silence)，对话无法继续。")
+        return "exitProc"
 
 def main():
     """主函数"""
-    print("正在初始化故宫客服系统...")
-    
-    # 创建解释器（使用模拟模式的LLM客户端）
-    interpreter = DSLInterpreter()
-    
-    # 加载DSL脚本
     dsl_file = "spotServer.dsl"
     if not os.path.exists(dsl_file):
-        print(f"错误: DSL文件 {dsl_file} 不存在")
-        print("请确保 spotServer.dsl 文件在当前目录中")
-        return
-    
-    script = load_dsl_file(dsl_file)
-    if not script:
-        return
-    
-    # 解析脚本
-    print("正在解析DSL脚本...")
-    if not interpreter.load_dsl_script(script):
-        print("DSL脚本解析失败，请检查脚本语法")
-        return
-    
-    # 运行解释器
-    try:
+        print(f"❌ 致命错误: DSL脚本文件 '{dsl_file}' 不存在于当前目录。")
+        sys.exit(1)
+
+    with open(dsl_file, 'r', encoding='utf-8') as f:
+        script = f.read()
+
+    interpreter = DSLInterpreter()
+    if interpreter.load_dsl_script(script):
         interpreter.run()
-    except KeyboardInterrupt:
-        print("\n\n👋 感谢使用故宫客服，再见！")
-    except Exception as e:
-        print(f"\n💥 系统发生错误: {e}")
+    else:
+        print("\n程序因DSL脚本解析失败而终止。")
 
 if __name__ == "__main__":
     main()
