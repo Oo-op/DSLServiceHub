@@ -1,23 +1,29 @@
+# 文件名: main.py
+
 import sys
 import os
 import time
+from typing import Optional
+        #from dotenv import load_dotenv
+
+# 从修正后的 interpreter.py 导入所有需要的类
 from interpreter import Lexer, Parser, LexicalError, SyntaxError, \
-                          SpeakNode, ListenNode, BranchNode, DefaultNode, ExitNode, SilenceNode
-from LLMNeed import LLMClient
-from typing import Optional, List 
-from dotenv import load_dotenv  # 新增导入
+                          ProgramNode, StepNode, SpeakNode, ListenNode, \
+                          BranchNode, DefaultNode, ExitNode, SilenceNode
+
+from LLMClient import LLMClient
 
 class DSLInterpreter:
     """DSL解释器：执行AST并管理对话状态"""
-    
+
     def __init__(self, llm_client: LLMClient):
         self.llm_client = llm_client
         self.steps = {}
         self.silence_count = 0
-        self.max_silence_retries = 1
-        
+        self.max_silence_retries = 2
+
     def load_dsl_script(self, script: str) -> bool:
-        """加载并解析DSL脚本"""
+        """加载并解析DSL脚本，生成并存储步骤"""
         try:
             lexer = Lexer(script)
             tokens = lexer.tokenize()
@@ -27,7 +33,7 @@ class DSLInterpreter:
             self.steps.clear()
             for step in ast.steps:
                 if step.name in self.steps:
-                    print(f"警告: 步骤 '{step.name}' 被重复定义。后边的定义会覆盖前边的。")
+                    print(f"警告: 步骤 '{step.name}' 被重复定义。")
                 self.steps[step.name] = step
                 
             print(f"成功加载并解析DSL脚本，共 {len(self.steps)} 个步骤。")
@@ -38,137 +44,113 @@ class DSLInterpreter:
         except Exception as e:
             print(f"加载脚本时发生未知错误: {e}")
             return False
-    
-    def run(self, start_step_name: str = "welcome"):
-        """从指定步骤开始运行解释器"""
-        if start_step_name not in self.steps:
-            print(f"错误: 起始步骤 '{start_step_name}' 未在DSL脚本中定义。")
-            return
 
-        print("\n" + "="*50)
-        print("欢迎使用故宫博物院智能客服系统")
-        print("当前运行在AI模式，可以自然对话")
-        print("您可以随时输入'没有'或'再见'来结束对话")
-        print("="*50 + "\n")
-        
+    def run(self, start_step_name: str = "welcome"):
+        if not self.steps: print("错误: 未加载任何DSL脚本。"); return
+        if start_step_name not in self.steps: print(f"错误: 起始步骤 '{start_step_name}' 不存在。"); return
+
+        print("\n" + "="*50 + "\n欢迎使用故宫博物院智能客服系统\n您可以随时输入'再见'来结束对话\n" + "="*50 + "\n")
+
         current_step_name = start_step_name
         while current_step_name:
             try:
                 current_step_name = self.execute_step(current_step_name)
-            except KeyboardInterrupt:
-                print("\n\n对话被用户中断。感谢使用，再见！")
-                break
+            except KeyboardInterrupt: print("\n\n对话被用户中断。再见！"); break
             except Exception as e:
-                print(f"\n执行过程中发生意外错误: {e}")
-                print("系统遇到问题，对话结束。")
-                break
+                import traceback
+                print(f"\n执行过程中发生意外错误: {e}"); traceback.print_exc(); break
         
-        print("\n" + "="*50)
-        print("对话已结束。")
-        print("="*50)
+        print("\n" + "="*50 + "\n对话已结束。感谢您的使用！\n" + "="*50)
 
     def execute_step(self, step_name: str) -> Optional[str]:
-        """
-        执行单个步骤的所有动作，并返回下一个步骤的名称。
-        返回 None 表示对话结束。
-        """
-        if step_name not in self.steps:
-            print(f"运行时错误: 尝试跳转到不存在的步骤 '{step_name}'。")
-            return "exitProc" # 跳转到退出步骤以安全结束
-
         step = self.steps[step_name]
-        print(f"\n进入步骤: {step_name}")
+        print(f"\n>>>>> 进入步骤: {step_name} <<<<<")
         
-        if step_name != "silenceProc":
-             self.silence_count = 0
+        # 重置静默计数器
+        self.silence_count = 0
 
+        # 按顺序执行指令
         for action in step.actions:
             if isinstance(action, SpeakNode):
                 print(f"客服: {action.message}")
-                time.sleep(0.5) 
-            
+                time.sleep(0.5)
             elif isinstance(action, ListenNode):
-                return self.execute_listen(action, step.actions)
-
+                return self.execute_listen(step)
             elif isinstance(action, ExitNode):
                 return None
-
-            elif isinstance(action, (BranchNode, DefaultNode, SilenceNode)):
-                continue
-
-        for action in step.actions:
-            if isinstance(action, DefaultNode):
+            elif isinstance(action, DefaultNode):
+                # 如果步骤最后是Default，直接跳转
                 return action.step_name
         
-        print(f"警告: 步骤 '{step_name}' 执行完毕但没有后续指令 (如 Listen 或 Default)，对话流程中断。")
-        return "exitProc"
+        print(f"警告: 步骤 '{step_name}' 执行完毕但没有后续指令，对话中断。")
+        return None
 
-    def execute_listen(self, listen_node: ListenNode, actions: List) -> Optional[str]:
-        """执行Listen操作，获取用户输入并决定下一个步骤"""
-        branch_actions = {a.keyword: a for a in actions if isinstance(a, BranchNode)}
-        default_action = next((a for a in actions if isinstance(a, DefaultNode)), None)
-        silence_action = next((a for a in actions if isinstance(a, SilenceNode)), None)
+    def execute_listen(self, current_step: StepNode) -> Optional[str]:
+        branch_nodes = {a.keyword: a for a in current_step.actions if isinstance(a, BranchNode)}
+        default_node = next((a for a in current_step.actions if isinstance(a, DefaultNode)), None)
+        silence_node = next((a for a in current_step.actions if isinstance(a, SilenceNode)), None)
 
-        try:
-            user_input = input("您: ").strip()
-        except EOFError: 
-            user_input = ""
+        try: user_input = input("您: ").strip()
+        except EOFError: user_input = ""
 
         if user_input:
             self.silence_count = 0
             
-            recognized_intent = self.llm_client.recognize_intent(user_input, list(branch_actions.keys()))
+            # 策略1: 优先使用LLM进行意图识别 (这更符合项目要求)
+            if branch_nodes:
+                print("  (正在使用AI理解您的意图...)")
+                recognized_intent = self.llm_client.recognize_intent(user_input, list(branch_nodes.keys()))
+                if recognized_intent and recognized_intent in branch_nodes:
+                    return branch_nodes[recognized_intent].step_name
             
-            if recognized_intent and recognized_intent in branch_actions:
-                return branch_actions[recognized_intent].step_name
-
-            # 如果API识别失败，回退到关键词匹配
-            for keyword, branch_action in branch_actions.items():
+            # 策略2: 如果LLM失败，回退到关键词匹配
+            print("  (AI未能匹配，尝试关键词匹配...)")
+            for keyword, branch_action in branch_nodes.items():
                 if keyword.lower() in user_input.lower():
-                    print(f"[关键词匹配] 命中 '{keyword}'")
+                    print(f"  (关键词匹配命中: '{keyword}')")
                     return branch_action.step_name
             
-            if default_action:
-                print("  (未匹配到特定意图，执行默认流程...)")
-                return default_action.step_name
-        else:
+            if default_node: return default_node.step_name
+        else: # 用户静默
             self.silence_count += 1
-            print(f"检测到静默 (累计: {self.silence_count}次)")
-            
-            if silence_action:
-                return silence_action.step_name
-            elif default_action:
-                return default_action.step_name
+            print(f"  (检测到静默，累计: {self.silence_count}次)")
+            if self.silence_count >= self.max_silence_retries and silence_node:
+                return silence_node.step_name
+            elif default_node:
+                return default_node.step_name
 
-        print("警告: Listen 后无有效后续步骤 (Branch, Default, Silence)，对话无法继续。")
-        return "exitProc"
+        print("警告: Listen后无有效后续步骤，对话中断。")
+        return None
 
 def main():
-    """主函数"""
-    # 加载.env文件中的环境变量
-    load_dotenv()
+    #load_dotenv()
     
     dsl_file = "spotServer.dsl"
     if not os.path.exists(dsl_file):
-        print(f"错误: DSL脚本文件 '{dsl_file}' 不存在于当前目录。")
+        print(f"错误: DSL脚本文件 '{dsl_file}' 不存在。")
         sys.exit(1)
 
     with open(dsl_file, 'r', encoding='utf-8') as f:
         script = f.read()
 
-    # 从环境变量获取API密钥
-    api_key = os.getenv("DEEPSEEK_API_KEY")
-    if not api_key:
-        print("错误: 请先设置DEEPSEEK_API_KEY环境变量")
-        print("创建 .env 文件并在其中写入: DEEPSEEK_API_KEY=你的API密钥")
+    # from dotenv import load_dotenv
+
+    # 在main函数中
+# load_dotenv()
+# 直接使用环境变量或硬编码测试（仅用于调试）
+    app_id = os.getenv("SPARK_APP_ID") or "d48801c2"
+    api_key = os.getenv("SPARK_API_KEY") or "bf818c60404ba8d6d6297a4aeb677a5d"
+    api_secret = os.getenv("SPARK_API_SECRET") or "NzUwN2M1MTMyOTA5YTU1N2UxYjQyNWMw"
+    
+    if not all([app_id, api_key, api_secret]):
+        print("错误: 请在项目根目录下创建 .env 文件并填入讯飞星火的凭证。")
         sys.exit(1)
     
-    # 创建LLM客户端
     try:
-        llm_client = LLMClient(api_key=api_key)
+        # 你可以指定版本，如 "v1.5", "v2.0" 等，默认为 "v3.5"
+        llm_client = LLMClient(app_id=app_id, api_key=api_key, api_secret=api_secret, spark_version="max")
     except ValueError as e:
-        print(f"错误: {e}")
-        sys.exit(1)
+        print(f"错误: {e}"); sys.exit(1)
     
     interpreter = DSLInterpreter(llm_client)
     if interpreter.load_dsl_script(script):

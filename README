@@ -69,3 +69,14 @@ DSL 解析工具：新手推荐 lark（Python 库），不用从零写 lex/yacc�
 运行指令：python main.py
 
 添加购票，需要带什么，调用真实的AI API
+# 直接运行，不使用虚拟环境
+"C:\Users\LENOVO\AppData\Local\Programs\Python\Python314\python.exe" main.py
+# 先安装virtualenv
+"C:\Users\LENOVO\AppData\Local\Programs\Python\Python314\python.exe" -m pip install virtualenv
+
+# 使用virtualenv创建环境
+"C:\Users\LENOVO\AppData\Local\Programs\Python\Python314\python.exe" -m virtualenv venv
+
+
+# 激活虚拟环境
+venv\Scripts\activate
