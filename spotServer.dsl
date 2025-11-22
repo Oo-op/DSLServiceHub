@@ -8,10 +8,10 @@ Step welcome
   Branch "成人票", adultTicketProc
   Branch "学生票", studentTicketProc
   Branch "老人票", elderTicketProc
-  Branch "开放时间", timeProc
+  Branch "时间", timeProc
   Branch "游玩攻略", playProc
   Branch "购票", howToBuyProc
-  Branch "必备物品", whatToBringProc
+  Branch "物品", whatToBringProc
   Branch "没有", exitProc
   Silence silenceProc
   Default defaultProc
@@ -42,11 +42,22 @@ Step elderTicketProc
 
 # --- 新增的购票和准备流程 ---
 Step howToBuyProc
-  Speak "故宫实行实名制预约购票，您可以通过以下方式购票：\n1. 故宫博物院官方小程序（推荐）\n2. 故宫博物院官方网站\n3. 官方授权的第三方平台\n\n所有门票需提前1-7天预约，不支持现场购票。预约时需要提供参观者的真实姓名和身份证号码。"
+  Speak "故宫实行实名制预约购票，您可以通过以下方式购票：
+1. 故宫博物院官方小程序（推荐）
+2. 故宫博物院官方网站
+3. 官方授权的第三方平台
+
+所有门票需提前1-7天预约，不支持现场购票。预约时需要提供参观者的真实姓名和身份证号码。"
   Default continueProc
 
 Step whatToBringProc
-  Speak "参观故宫需要携带：\n1. 本人有效身份证件原件（身份证、护照等）\n2. 预约成功的二维码或短信\n3. 学生、老人等优惠票需携带相应优惠证件\n4. 建议携带：饮用水、舒适鞋子、防晒用品\n\n重要提示：入园时需人证票合一核验，请务必携带预约时使用的身份证件原件。"
+  Speak "参观故宫需要携带：
+1. 本人有效身份证件原件（身份证、护照等）
+2. 预约成功的二维码或短信
+3. 学生、老人等优惠票需携带相应优惠证件
+4. 建议携带：饮用水、舒适鞋子、防晒用品
+
+重要提示：入园时需人证票合一核验，请务必携带预约时使用的身份证件原件。"
   Default continueProc
 
 # --- 其他主题流程 ---
@@ -67,17 +78,17 @@ Step spotProc
 
 # 静默处理：当用户超时未输入时触发
 Step silenceProc
-  Speak "还在吗？如果您有需要，可以直接告诉我您的问题。比如 '门票'、'开放时间'、'购票'、'需要带什么'。如果没有问题了，可以说 '没有'。"
+  Speak "还在吗？如果您有需要，可以直接告诉我您的问题。比如 '门票'、'时间'、'购票'、'物品'。如果没有问题了，可以说 '没有'。"
   Listen 5, 20
   # 再次提供主要选项
   Branch "门票", ticketProc
   Branch "成人票", adultTicketProc
   Branch "学生票", studentTicketProc
   Branch "老人票", elderTicketProc
-  Branch "开放时间", timeProc
+  Branch "时间", timeProc
   Branch "游玩攻略", playProc
   Branch "购票", howToBuyProc
-  Branch "需要带什么", whatToBringProc
+  Branch "物品", whatToBringProc
   Branch "没有", exitProc
   # 如果再次静默，则结束对话
   Silence exitProc
@@ -85,16 +96,16 @@ Step silenceProc
 
 # 默认处理：当用户输入无法匹配任何Branch时触发
 Step defaultProc
-  Speak "抱歉，我不太理解您的问题。您可以试试问我关于门票、开放时间、游玩攻略、购票或需要带什么的问题。或者可以拨打咨询电话400-950-1925咨询更多问题"
+  Speak "抱歉，我不太理解您的问题。您可以试试问我关于门票、时间、游玩攻略、购票或物品的问题。或者可以拨打咨询电话400-950-1925咨询更多问题"
   Listen 5, 30
   Branch "门票", ticketProc
   Branch "成人票", adultTicketProc
   Branch "学生票", studentTicketProc
   Branch "老人票", elderTicketProc
-  Branch "开放时间", timeProc
+  Branch "时间", timeProc
   Branch "游玩攻略", playProc
   Branch "购票", howToBuyProc
-  Branch "需要带什么", whatToBringProc
+  Branch "物品", whatToBringProc
   Branch "没有", exitProc
   Silence silenceProc
   Default continueProc
@@ -108,10 +119,10 @@ Step continueProc
   Branch "成人票", adultTicketProc
   Branch "学生票", studentTicketProc
   Branch "老人票", elderTicketProc
-  Branch "开放时间", timeProc
+  Branch "时间", timeProc
   Branch "游玩攻略", playProc
   Branch "购票", howToBuyProc
-  Branch "需要带什么", whatToBringProc
+  Branch "物品", whatToBringProc
   Branch "没有", exitProc
   Silence silenceProc
   Default defaultProc

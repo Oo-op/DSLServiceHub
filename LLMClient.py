@@ -25,16 +25,14 @@ class LLMClient:
         self.api_secret = api_secret
         
         # 根据最新讯飞星火版本更新映射
-        # 在 LLMClient.py 中更新版本映射
         version_map = {
-        "v3.5": ("wss://spark-api.xf-yun.com/v3.5/chat", "generalv3.5"),
-        "lite": ("wss://spark-api.xf-yun.com/v3.1/chat", "generalv3"),
-        "pro": ("wss://spark-api.xf-yun.com/v3.1/chat", "generalv3"),
-        "max": ("wss://spark-api.xf-yun.com/v3.1/chat", "generalv3"),
-        "ultra": ("wss://spark-api.xf-yun.com/v3.1/chat", "generalv3"),
-        "v3.0": ("wss://spark-api.xf-yun.com/v3.1/chat", "generalv3"),
+            "v3.5": ("wss://spark-api.xf-yun.com/v3.5/chat", "generalv3.5"),
+            "lite": ("wss://spark-api.xf-yun.com/v3.1/chat", "generalv3"),
+            "pro": ("wss://spark-api.xf-yun.com/v3.1/chat", "generalv3"),
+            "max": ("wss://spark-api.xf-yun.com/v3.1/chat", "generalv3"),
+            "ultra": ("wss://spark-api.xf-yun.com/v3.1/chat", "generalv3"),
+            "v3.0": ("wss://spark-api.xf-yun.com/v3.1/chat", "generalv3"),
         }
-        
         
         if spark_version not in version_map:
             raise ValueError(f"不支持的星火版本: {spark_version}，可用版本: {list(version_map.keys())}")
@@ -58,15 +56,40 @@ class LLMClient:
         v = {"authorization": authorization, "date": date, "host": self.host}
         return self.spark_url + '?' + urlencode(v)
 
+    def is_similar_intent(self, ai_response: str, intent: str) -> bool:
+        """判断两个意图是否相似"""
+        similarity_map = {
+            "必备": "物品",
+            "需要": "物品", 
+            "携带": "物品",
+            "带什么": "物品",
+            "带": "物品",
+            "开放": "时间",
+            "时间": "时间",
+            "几点": "时间",
+            "营业": "时间",
+            "攻略": "游玩攻略",
+            "游览": "游玩攻略",
+            "怎么玩": "游玩攻略",
+            "票": "门票",
+            "票价": "门票",
+            "购买": "购票",
+            "怎么买": "购票"
+        }
+        return similarity_map.get(ai_response) == intent
+
     def recognize_intent(self, user_input: str, available_intents: List[str]) -> Optional[str]:
         system_content = f"""你是一个故宫博物院客服系统的意图分类器。请严格分析用户输入并分类到以下意图之一：
 可用意图列表：{', '.join(available_intents)}
 
 分类规则：
-1. 只返回意图名称，不要任何解释或多余的文字。
-2. 如果用户输入明显匹配某个意图，返回对应的意图名称。
-3. 如果用户输入与任何意图都不匹配，或者意图不明确，返回 "unknown"。
-4. 确保返回的意图名称与列表中的完全一致。
+1. 只返回意图名称，必须从可用意图列表中选择一个。
+2. 如果用户询问关于携带物品、需要带什么，返回"物品"
+3. 如果用户询问开放时间、营业时间，返回"时间"
+4. 如果用户询问门票价格、票价，返回"门票"
+5. 如果用户询问如何购买、购票方式，返回"购票"
+6. 如果用户询问游玩建议、路线，返回"游玩攻略"
+7. 如果与任何意图都不匹配，返回"unknown"
 """
         result_container = []
         completed = threading.Event()
@@ -129,7 +152,21 @@ class LLMClient:
             if result_container:
                 full_response = "".join(result_container).strip().replace('"', '')
                 print(f"[星火识别] 用户: '{user_input}' -> AI识别结果: '{full_response}'")
-                return full_response if full_response in available_intents else None
+                
+                # 精确匹配
+                if full_response in available_intents:
+                    return full_response
+                
+                # 增强模糊匹配
+                for intent in available_intents:
+                    # 如果AI返回的是意图的一部分，或者意图是AI返回的一部分
+                    if (full_response in intent or 
+                        intent in full_response or
+                        self.is_similar_intent(full_response, intent)):
+                        print(f"[星火识别] 模糊匹配: '{full_response}' -> '{intent}'")
+                        return intent
+                
+                return None
             else:
                 print("[星火识别] 未收到有效API响应或超时。")
                 return None

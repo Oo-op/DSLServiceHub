@@ -46,6 +46,7 @@ class Lexer:
         if char == '"':
             self.pos += 1
             start_pos = self.pos
+            # 支持多行字符串
             while self.pos < len(self.script) and self.script[self.pos] != '"':
                 self.pos += 1
             if self.pos >= len(self.script): raise LexicalError("未闭合的字符串")
@@ -144,7 +145,10 @@ class Parser:
 
     def parse_speak(self) -> SpeakNode:
         self.expect(TokenType.KEYWORD, "Speak")
-        return SpeakNode(self.expect(TokenType.STRING).value)
+        message = self.expect(TokenType.STRING).value
+        # 处理转义字符
+        message = message.replace('\\n', '\n')
+        return SpeakNode(message)
 
     def parse_listen(self) -> ListenNode:
         self.expect(TokenType.KEYWORD, "Listen")
