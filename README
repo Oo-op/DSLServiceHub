@@ -77,6 +77,50 @@ DSL 解析工具：新手推荐 lark（Python 库），不用从零写 lex/yacc�
 # 使用virtualenv创建环境
 "C:\Users\LENOVO\AppData\Local\Programs\Python\Python314\python.exe" -m virtualenv venv
 
+命令行版本（在 back 目录）：
+
+bash
+cd back
+python main.py
+Web 版本（在 frontend 目录）：
+
+bash
+cd frontend 
+python app.py
 
 # 激活虚拟环境
 venv\Scripts\activate
+
+
+
+
+=====================================
+测试桩 + TDD + 自动测试
+
+步骤 1：编写测试用例（TDD）
+
+
+步骤 2：实现测试桩
+
+步骤 3：实现功能代码
+
+步骤 4：运行测试
+
+6. 工具推荐
+单元测试：pytest、JUnit、Jest
+测试桩 / 模拟：Mockito（Java）、unittest.mock（Python）
+持续集成：Jenkins、GitHub Actions（自动运行测试）
+测试报告：Allure、pytest-html
+
+总结
+测试桩：模拟依赖，隔离被测试模块。
+TDD：先测试后编码，确保代码符合需求。
+自动测试脚本：使用框架编写可重复执行的测试。
+测试结果：分析失败原因，确保代码质量。
+
+python test_suite.py 
+
+
+
+
+静默

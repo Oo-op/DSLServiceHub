@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>故宫博物院智能客服</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <!-- 头部 -->
+        <header class="header">
+            <div class="logo">
+                <h1>故宫博物院</h1>
+                <p>智能客服系统</p>
+            </div>
+            <div class="decoration">🏛️</div>
+        </header>
+
+        <!-- 对话区域 -->
+        <div class="chat-container">
+            <div class="chat-messages" id="chatMessages">
+                <!-- 消息将通过 JavaScript 动态添加 -->
+            </div>
+        </div>
+
+        <!-- 输入区域 -->
+        <div class="input-container">
+            <div class="input-group">
+                <input type="text" id="userInput" placeholder="请输入您的问题..." maxlength="200">
+                <button id="sendBtn">发送</button>
+            </div>
+            <div class="quick-actions">
+                <button class="quick-btn" data-message="门票">门票</button>
+                <button class="quick-btn" data-message="时间">开放时间</button>
+                <button class="quick-btn" data-message="购票">如何购票</button>
+                <button class="quick-btn" data-message="游玩攻略">游玩攻略</button>
+                <button class="quick-btn" data-message="没有">结束对话</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>
