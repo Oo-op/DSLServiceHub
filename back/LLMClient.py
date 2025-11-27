@@ -10,7 +10,10 @@ from wsgiref.handlers import format_date_time
 import websocket
 from typing import List, Optional
 import threading
-
+# 加密相关：hashlib, base64, hmac - 用于API认证签名
+# 网络相关：urlencode, urlparse, ssl, websocket - 用于WebSocket连接
+# 时间相关：datetime, mktime, format_date_time - 用于时间戳生成
+# 并发：threading - 用于异步处理WebSocket消息
 
 class LLMClient:
     """LLM客户端，用于意图识别（使用讯飞星火 API）"""
@@ -73,9 +76,6 @@ class LLMClient:
     def recognize_intent(self, user_input: str, available_intents: List[str]) -> Optional[str]:
         """
         识别用户输入的意图
-        :param user_input: 用户输入文本
-        :param available_intents: 可用的意图列表
-        :return: 匹配的意图名称，无匹配则返回None
         """
         # 构建系统提示词
         intents_str = ", ".join([f"'{i}'" for i in available_intents])
@@ -98,24 +98,24 @@ class LLMClient:
         result_container = []
         completed = threading.Event()
 
-        # WebSocket回调函数
+        # WebSocket回调函数 ws - WebSocket连接对象，message - 接收到的原始消息
         def on_message(ws, message):
             try:
-                data = json.loads(message)
-                code = data['header']['code']
+                data = json.loads(message)#将接收到的JSON字符串解析为Python字典对象
+                code = data['header']['code']#检查返回码,0表示成功
                 if code != 0:
                     print(f'[API Error] code={code}, msg={data["header"]["message"]}')
                     ws.close()
                 else:
-                    choices = data["payload"]["choices"]
+                    choices = data["payload"]["choices"]#从响应数据中提取AI回复内容所在的部分
                     # 提取回复内容
                     if "text" in choices:
                         content = choices["text"][0]["content"]
                         result_container.append(content)
                     # 检查是否完成（status=2表示对话结束）
                     if choices.get("status") == 2:
-                        completed.set()
-                        ws.close()
+                        completed.set()#通知主线程处理完成
+                        ws.close()#关闭WebSocket连接
             except Exception as e:
                 print(f"Message Error: {e}")
                 completed.set()
@@ -127,7 +127,7 @@ class LLMClient:
         def on_close(ws, *args):
             completed.set()
 
-        def on_open(ws):
+        def on_open(ws):# WebSocket连接建立后发送请求
             # 构建请求数据
             request_data = {
                 "header": {"app_id": self.app_id},
@@ -147,7 +147,7 @@ class LLMClient:
                     }
                 }
             }
-            ws.send(json.dumps(request_data))
+            ws.send(json.dumps(request_data))# 发送请求数据
 
         # 建立WebSocket连接
         ws_url = self._get_auth_url()
@@ -180,7 +180,7 @@ class LLMClient:
             # 1. 精确匹配
             if full_response in available_intents:
                 return full_response
-            # 2. 包含匹配
+            # 2. 包含匹配 AI回复中包含意图名称
             for intent in available_intents:
                 if intent in full_response:
                     return intent

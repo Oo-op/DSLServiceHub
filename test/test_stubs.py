@@ -27,21 +27,21 @@ class LLMClientStub:
     
     def recognize_intent(self, user_input: str, available_intents: List[str]) -> Optional[str]:
         """模拟意图识别"""
-        print(f"[Stub Debug] 输入: '{user_input}', 可用意图: {available_intents}")
+        #print(f"[Stub Debug] 输入: '{user_input}', 可用意图: {available_intents}")
         
         # 精确匹配
         intent = self.intent_mapping.get(user_input)
         if intent and intent in available_intents:
-            print(f"[Stub Debug] 精确匹配到意图: {intent}")
+            #print(f"[Stub Debug] 精确匹配到意图: {intent}")
             return intent
         
         # 关键词匹配
         for keyword, mapped_intent in self.intent_mapping.items():
             if keyword in user_input and mapped_intent in available_intents:
-                print(f"[Stub Debug] 关键词匹配: '{keyword}' -> '{mapped_intent}'")
+                #print(f"[Stub Debug] 关键词匹配: '{keyword}' -> '{mapped_intent}'")
                 return mapped_intent
         
-        print("[Stub Debug] 未匹配到任何意图")
+        #print("[Stub Debug] 未匹配到任何意图")
         return None
 
 class DSLScriptStub:

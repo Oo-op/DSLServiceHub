@@ -178,7 +178,7 @@ class WebDSLInterpreter:
             "message": "\n".join(messages),
             "end": end_conversation,
             "current_step": self.current_step,
-            "timeout": single_timeout_sec * 1000,  # 单次超时(提醒用)，转为毫秒给前端
+            "timeout": single_timeout_sec * 1000,  # 单次超时(提醒用)
             "total_silence_timeout": total_timeout_sec, # 总超时配置
             "remaining_total_timeout": remaining_total_timeout, # 剩余总静默时间
             "current_silence_count": self.silence_count

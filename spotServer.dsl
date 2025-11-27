@@ -3,7 +3,7 @@
 # 欢迎步骤，对话入口
 Step welcome
   Speak "您好，这里是故宫博物院智能客服，请问有什么可以帮您的？"
-  Listen 10, 40   #十秒无响应发出提醒，40秒无响应终止对话，每次提问后重置计时器
+  Listen 10, 50   #十秒无响应发出提醒，40秒无响应终止对话，每次提问后重置计时器
   Branch "门票", ticketProc
   Branch "成人票", adultTicketProc
   Branch "学生票", studentTicketProc
@@ -21,7 +21,7 @@ Step welcome
 # --- 门票相关流程 ---
 Step ticketProc
   Speak "故宫门票分旺季和淡季。请问您想了解成人票、学生票还是老人票？或者您想了解购票、需要带什么证件？"
-  Listen 10, 40
+  Listen 10, 50
   Branch "成人票", adultTicketProc
   Branch "学生票", studentTicketProc
   Branch "老人票", elderTicketProc
@@ -36,7 +36,7 @@ Step ticketProc
 Step adultTicketProc
   Speak "旺季（4月1日-10月31日）成人票60元/人，淡季（11月1日-3月31日）40元/人。门票需提前7天通过官方小程序实名预约。"
   Speak "请问还有其他可以帮您的吗？"  # 直接显示继续服务消息
-  Listen 10, 40
+  Listen 10, 50
   Branch "门票", ticketProc
   Branch "成人票", adultTicketProc
   Branch "学生票", studentTicketProc
@@ -53,7 +53,7 @@ Step adultTicketProc
 Step studentTicketProc
   Speak "学生票旺季30元/人、淡季20元/人，需凭有效学生证购买并核验。"
   Speak "请问还有其他可以帮您的吗？"  # 直接显示继续服务消息
-  Listen 10, 40
+  Listen 10, 50
   Branch "门票", ticketProc
   Branch "成人票", adultTicketProc
   Branch "学生票", studentTicketProc
@@ -70,7 +70,7 @@ Step studentTicketProc
 Step elderTicketProc
   Speak "60岁以上老人凭身份证可免票入园，入园时请准备好有效证件。"
   Speak "请问还有其他可以帮您的吗？"  # 直接显示继续服务消息
-  Listen 10, 40
+  Listen 10, 50
   Branch "门票", ticketProc
   Branch "成人票", adultTicketProc
   Branch "学生票", studentTicketProc
@@ -93,7 +93,7 @@ Step howToBuyProc
 
 所有门票需提前1-7天预约，不支持现场购票。预约时需要提供参观者的真实姓名和身份证号码。"
   Speak "请问还有其他可以帮您的吗？"  # 直接显示继续服务消息
-  Listen 10, 40
+  Listen 10, 50
   Branch "门票", ticketProc
   Branch "成人票", adultTicketProc
   Branch "学生票", studentTicketProc
@@ -116,7 +116,7 @@ Step whatToBringProc
 
 重要提示：入园时需人证票合一核验，请务必携带预约时使用的身份证件原件。"
   Speak "请问还有其他可以帮您的吗？"  # 直接显示继续服务消息
-  Listen 10, 40
+  Listen 10, 50
   Branch "门票", ticketProc
   Branch "成人票", adultTicketProc
   Branch "学生票", studentTicketProc
@@ -134,7 +134,7 @@ Step whatToBringProc
 Step timeProc
   Speak "故宫旺季（4月1日-10月31日）开放时间为 08:30-17:00（16:10停止入园）；淡季（11月1日-3月31日）为 08:30-16:30（15:40停止入园）。全年周一常规闭馆（法定节假日除外）。"
   Speak "请问还有其他可以帮您的吗？"  # 直接显示继续服务消息
-  Listen 10, 40
+  Listen 10, 50
   Branch "门票", ticketProc
   Branch "成人票", adultTicketProc
   Branch "学生票", studentTicketProc
@@ -151,7 +151,7 @@ Step timeProc
 Step playProc
   Speak "推荐您沿中轴线游览，大约需要3-4小时。如果您时间充裕，可以参观两侧的珍宝馆、钟表馆，深度游玩建议5-6小时。上午9:30至11:30是入园高峰，建议错峰出行。"
   Speak "请问还有其他可以帮您的吗？"  # 直接显示继续服务消息
-  Listen 10, 40
+  Listen 10, 50
   Branch "门票", ticketProc
   Branch "成人票", adultTicketProc
   Branch "学生票", studentTicketProc
@@ -171,7 +171,7 @@ Step playProc
 # 静默处理：当用户超时未输入时触发
 Step silenceProc
   Speak "还在吗？如果您有需要，可以直接告诉我您的问题。比如 '门票'、'时间'、'购票'、'物品'。如果没有问题了，可以说 '没有'。"
-  Listen 10, 40
+  Listen 10, 50
   # 再次提供主要选项
   Branch "门票", ticketProc
   Branch "成人票", adultTicketProc
@@ -191,7 +191,7 @@ Step silenceProc
 Step defaultProc
   Speak "抱歉，我不太理解您的问题。您可以试试问我关于门票、时间、游玩攻略、购票或物品的问题。或者可以拨打咨询电话400-950-1925咨询更多问题"
   Speak "请问还有其他可以帮您的吗？"  # 直接显示继续服务消息
-  Listen 10, 40
+  Listen 10, 50
   Branch "门票", ticketProc
   Branch "成人票", adultTicketProc
   Branch "学生票", studentTicketProc
