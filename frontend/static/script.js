@@ -1,11 +1,12 @@
-// 静态文件: static/script.js
 class ChatInterface {
     constructor() {
+        // 获取DOM元素：聊天消息区域、输入框和发送按钮
         this.chatMessages = document.getElementById('chatMessages');
         this.userInput = document.getElementById('userInput');
         this.sendBtn = document.getElementById('sendBtn');
+        this.sessionId = null; // 存储会话ID
+        this.silenceTimer = null; // 静默检测定时器
         this.isWaiting = false;
-        
         this.init();
     }
     
@@ -15,7 +16,6 @@ class ChatInterface {
             if (e.key === 'Enter') this.sendMessage();
         });
         
-        // 快捷按钮事件
         document.querySelectorAll('.quick-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 const message = e.target.getAttribute('data-message');
@@ -24,58 +24,103 @@ class ChatInterface {
             });
         });
         
-        // 开始对话
         this.startConversation();
     }
     
+    // --- 静默计时器逻辑 ---
+    handleSilenceTimer(timeout) {
+        // 先清除旧的定时器
+        if (this.silenceTimer) {
+            clearTimeout(this.silenceTimer);
+            this.silenceTimer = null;
+        }
+
+        // 如果后端返回了有效的超时时间 (毫秒)
+        if (timeout && timeout > 0) {
+            console.log(`启动静默检测: ${timeout}ms`);
+            this.silenceTimer = setTimeout(() => {
+                console.log("静默超时，自动发送空消息...");
+                this.sendMessage(true); // true 表示这是系统自动触发的静默消息
+            }, timeout);
+        }
+    }
+
     async startConversation() {
         try {
             const response = await fetch('/api/start', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                }
+                headers: { 'Content-Type': 'application/json' }
             });
             const data = await response.json();
+            
+            if (data.session_id) {
+                this.sessionId = data.session_id;
+            }
+            
             this.addBotMessage(data.message);
+            // 处理可能的超时设置
+            this.handleSilenceTimer(data.timeout);
+
         } catch (error) {
-            console.error('启动对话失败:', error);
-            this.addBotMessage('您好！欢迎使用故宫博物院智能客服。');
+            console.error('启动失败:', error);
+            this.addBotMessage('连接服务器失败。');
         }
     }
     
-    async sendMessage() {
-        const message = this.userInput.value.trim();
-        if (!message || this.isWaiting) return;
+    async sendMessage(isSilenceTrigger = false) {
+        // 如果是用户主动发，且当前正在等待回复，则阻止（防止重复提交）
+        // 如果是静默触发，允许执行
+        if (!isSilenceTrigger && this.isWaiting) return;
         
-        this.addUserMessage(message);
-        this.userInput.value = '';
+        let message = "";
+        
+        if (!isSilenceTrigger) {
+            message = this.userInput.value.trim();
+            if (!message) return; // 用户不能发空消息
+            
+            this.addUserMessage(message);
+            this.userInput.value = '';
+            
+            // 用户主动操作了，必须清除之前的静默定时器
+            if (this.silenceTimer) {
+                clearTimeout(this.silenceTimer);
+                this.silenceTimer = null;
+            }
+        }
+        
         this.showTypingIndicator();
         
         try {
             const response = await fetch('/api/message', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ message })
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    message: message, 
+                    session_id: this.sessionId 
+                })
             });
             
             const data = await response.json();
             this.hideTypingIndicator();
             
             if (data.error) {
-                this.addBotMessage('系统出现错误，请稍后重试。');
-            } else if (data.end) {
-                this.addBotMessage(data.message);
-                this.disableInput();
+                this.addBotMessage(data.error);
+                if (data.end) this.disableInput();
             } else {
                 this.addBotMessage(data.message);
+                if (data.end) {
+                    this.disableInput();
+                    // 对话结束，清除定时器
+                    if (this.silenceTimer) clearTimeout(this.silenceTimer);
+                } else {
+                    // 对话继续，根据后端指令重置定时器
+                    this.handleSilenceTimer(data.timeout);
+                }
             }
         } catch (error) {
-            console.error('发送消息失败:', error);
+            console.error('发送失败:', error);
             this.hideTypingIndicator();
-            this.addBotMessage('网络连接失败，请检查网络后重试。');
+            this.addBotMessage('网络错误');
         }
     }
     
@@ -88,10 +133,10 @@ class ChatInterface {
     }
     
     addBotMessage(message) {
+        if (!message) return;
         const messageEl = document.createElement('div');
         messageEl.className = 'message bot-message';
         
-        // 处理换行
         const lines = message.split('\n');
         lines.forEach((line, index) => {
             if (index > 0) messageEl.appendChild(document.createElement('br'));
@@ -104,13 +149,16 @@ class ChatInterface {
     
     showTypingIndicator() {
         this.isWaiting = true;
-        this.sendBtn.disabled = true;
+        if (!this.silenceTimer) { 
+            // 只有在非静默自动触发的情况下才禁用按钮
+            // 如果是静默触发，其实按钮已经是可用的状态，但这里保持一致性
+            this.sendBtn.disabled = true; 
+        }
         
         const indicator = document.createElement('div');
         indicator.className = 'message bot-message typing-indicator';
         indicator.id = 'typingIndicator';
-        indicator.innerHTML = '客服正在输入<span class="typing-dots"><span>.</span><span>.</span><span>.</span></span>';
-        
+        indicator.innerHTML = '...';
         this.chatMessages.appendChild(indicator);
         this.scrollToBottom();
     }
@@ -118,11 +166,8 @@ class ChatInterface {
     hideTypingIndicator() {
         this.isWaiting = false;
         this.sendBtn.disabled = false;
-        
         const indicator = document.getElementById('typingIndicator');
-        if (indicator) {
-            indicator.remove();
-        }
+        if (indicator) indicator.remove();
     }
     
     scrollToBottom() {
@@ -132,13 +177,10 @@ class ChatInterface {
     disableInput() {
         this.userInput.disabled = true;
         this.sendBtn.disabled = true;
-        document.querySelectorAll('.quick-btn').forEach(btn => {
-            btn.disabled = true;
-        });
+        document.querySelectorAll('.quick-btn').forEach(btn => btn.disabled = true);
     }
 }
 
-// 页面加载完成后初始化
 document.addEventListener('DOMContentLoaded', () => {
     new ChatInterface();
 });
