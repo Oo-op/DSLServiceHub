@@ -210,9 +210,9 @@ def init_system():
     global_llm_client = LLMClient(app_id, api_key, api_secret, spark_version="v3.5")
 
     # 适应不同运行环境的路径
-    dsl_path = os.path.join(current_dir, '..', 'spotServer.dsl')
+    dsl_path = os.path.join(current_dir, '..', 'productSale.dsl')
     if not os.path.exists(dsl_path):
-        dsl_path = os.path.join(current_dir, 'spotServer.dsl')
+        dsl_path = os.path.join(current_dir, 'productSale.dsl')
     if not os.path.exists(dsl_path):
         raise FileNotFoundError("无法找到 spotServer.dsl 文件")
 
@@ -297,3 +297,4 @@ def check_session_status():
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
+

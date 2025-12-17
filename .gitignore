@@ -1,0 +1,9 @@
+# 开发环境配置
+.vscode/
+# Python缓存/虚拟环境
+__pycache__/
+venv/
+# 敏感文件
+.env
+# 本地日志
+git_log.txt
